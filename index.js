@@ -6,6 +6,8 @@ import bcrypt from "bcrypt";
 import uid from "uid-safe"
 import cors from "cors";
 import multer from "multer";
+import nodemailer from "nodemailer";
+
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -90,6 +92,35 @@ async function updateSession(userId) {
 		"expires_date": futureDate
 	}
 }
+
+async function sendEmail(resultStates, userEmail, forgettenPassword) {
+	if (resultStates == "user name and email is true") {
+		const transporter = nodemailer.createTransport({
+			host: "smtp.gmail.com",
+			port: 465,
+			secure: true,
+			auth: {
+				user: process.env.EMAIL,
+				pass: process.env.EMAILPASSWORD
+			}
+		});
+		const mailoptions = {
+			from: process.env.EMAIL,
+			to: userEmail,
+			subject: "Forgotten Passwrod",
+			text: "test email"
+		}
+		transporter.sendMail(mailoptions, (error, info) => {
+			if (error) {
+				console.log(error);
+			};	
+		});
+		return "email sent";
+
+	}else{
+		return resultStates;	
+	};
+};
 
 
 
@@ -222,6 +253,30 @@ app.post("/uploadVideo", upload.single("file"), async (req, res) => {
 	await db.query("INSERT INTO videos (name, category, path) VALUES ($1, $2, $3);", [fileName, fileCategore, filePathName]);
 	res.sendStatus(200);
 });
+
+//send the passowrd to the user in email
+app.post("/forgetPassword", async(req, res) => {
+	const userName = req.body.userName;
+	const userEmail = req.body.userEmail;
+	const userNameList = await db.query("SELECT user_name FROM users");
+	let resultStates = "user not found";
+	for (let i=0; i < userNameList.rows.length; i++) {
+		if (userName == userNameList.rows[i]["user_name"]) {
+			resultStates = "user name found";
+		};
+	};
+	if (resultStates == "user name found") {
+		const dbUserEmail = await db.query("SELECT email FROM users WHERE user_name = $1;", [userName]);
+		if (dbUserEmail.rows[0]["email"] == userEmail) {
+			resultStates = "user name and email is true";
+		}else{
+			resultStates = "wrong email";
+		};
+	};
+	const sendEmailResault = await sendEmail(resultStates, userEmail);
+	res.json({"message": sendEmailResault});
+});
+
 
 
 
