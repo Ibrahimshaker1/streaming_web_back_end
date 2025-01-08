@@ -254,6 +254,17 @@ app.post("/uploadVideo", upload.single("file"), async (req, res) => {
 	res.sendStatus(200);
 });
 
+//Send video data to the client
+app.get("/videos", async (req, res) => {
+	const videosData = await db.query("SELECT * FROM videos");
+	if (videosData.rows.length > 0) {
+		res.json(videosData.rows)
+	}else{
+		res.json({"message": "there is no videos avilble"})
+	};
+});
+
+
 //send the passowrd to the user in email
 app.post("/forgetPassword", async(req, res) => {
 	const userName = req.body.userName;
