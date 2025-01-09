@@ -287,8 +287,39 @@ app.post("/forgetPassword", async(req, res) => {
 	const sendEmailResault = await sendEmail(resultStates, userEmail);
 	res.json({"message": sendEmailResault});
 });
-
-
+//create a room data in the database
+app.post("/createRoom", async(req, res) => {
+	const roomName = req.body.roomName;
+	const roomCategory = req.body.category;
+	const roomUserId = req.body.id;
+	const videoId = req.body.vidId;
+	const videoPath = await db.query("SELECT path FROM videos WHERE id = $1;", [videoId]);
+	const creatorName = await db.query("SELECT user_name FROM users WHERE id = $1;", [roomUserId]);
+	try{ 
+		const room = await db.query("INSERT INTO rooms (id, name, category, vid_path, creator_name) VALUES ($1, $2, $3, $4, $5) RETURNING * ;",
+			[roomUserId, roomName, roomCategory, videoPath.rows[0]["path"], creatorName.rows[0]["user_name"]]);
+		res.json( {
+			"roomData": room.rows[0]
+		});
+	}catch{
+		res.json({
+			"roomData": "Create Room Error"
+		});
+	};
+});
+// get rooms data 
+app.get("/roomData", async (req, res) => {
+	const roomData = await db.query("SELECT * FROM rooms");
+	if (roomData.rows.length > 0) {
+		res.json({
+			"roomGetData": roomData.rows
+		});
+	}else{
+		res.json({
+			"roomGetData": "no rooms in DB"
+		});
+	}
+});
 
 
 app.listen(port, () => {
