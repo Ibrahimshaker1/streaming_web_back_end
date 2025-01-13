@@ -7,7 +7,10 @@ import uid from "uid-safe"
 import cors from "cors";
 import multer from "multer";
 import nodemailer from "nodemailer";
-
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from 'url';
+import ffmpeg from "fluent-ffmpeg";
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -38,6 +41,10 @@ app.use(bodyPasrser.urlencoded({extended: true}))
 app.use(cors())
 
 db.connect()
+
+//make directory to the frame image
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // functions
 function future(days) {
@@ -320,6 +327,52 @@ app.get("/roomData", async (req, res) => {
 		});
 	}
 });
+// get a frame image from the video file
+app.get("/getImage", async(req, res) => {
+	const roomVidPath = req.query.path;
+	const imageName = roomVidPath.split(".")[0]
+	const videoPath = path.join(__dirname, `\\uploads\\${roomVidPath}`)
+	const framePath = path.join(__dirname, `\\roomImage\\${imageName}.jpg`);
+	const files = fs.readdirSync(__dirname + "\\roomImage");
+	let checkForFile = true;
+	// check if the video already had i image
+	for (let i=0; i<files.length; i++){
+		const imageFileName = files[i]
+		const onlyFileName = imageFileName.split(".")[0]
+		if (imageName == onlyFileName) {
+            checkForFile = false;
+			res.sendFile(framePath, (err) => {
+                if (err) {
+                    console.error(err);
+                    res.status(500).send('Error sending the frame.');
+                }
+            });
+		};
+	};
+	if (checkForFile) {
+		ffmpeg(videoPath)
+			.on('end', () => {
+				// Send the extracted frame as a response
+				res.sendFile(framePath, (err) => {
+					if (err) {
+						console.error(err);
+						res.status(500).send('Error sending the frame.');
+					}
+				});
+			})
+			.on('error', (err) => {
+				console.error(err);
+				res.status(500).send('Error processing the video.');
+			})
+			.screenshots({
+				timestamps: [1], // Specify the time in seconds
+				filename: `${imageName}.jpg`,
+				folder: path.join(__dirname, "roomImage"),
+				size: '640x?'
+			});
+	};
+});
+
 
 
 app.listen(port, () => {
