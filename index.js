@@ -327,6 +327,21 @@ app.get("/roomData", async (req, res) => {
 		});
 	}
 });
+//get the room and creator name
+app.get("/roomText/:roomid", async(req, res) => {
+	const roomId = req.params.roomid;
+	try{
+		const roomTextData = await db.query("SELECT name, creator_name FROM rooms WHERE id=$1;", [roomId]);
+		if (roomTextData.rows.length > 0) {
+			res.json({"message": roomTextData.rows[0]})
+		}else{
+			res.json({"message": "there is no room with this id"})
+		};
+	}catch{
+		res.json({"message": "db query error"})
+	};
+});
+
 // get a frame image from the video file
 app.get("/getImage", async(req, res) => {
 	const roomVidPath = req.query.path;
