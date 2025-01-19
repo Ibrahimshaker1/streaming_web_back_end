@@ -10,6 +10,8 @@ const io = new Server(expServer, {
 	}
 });
 
+//functions
+
 let roomState = {
 	activeRooms: [],
 	setActiveRoom: function(roomList) {
@@ -39,25 +41,81 @@ io.on("connection", socket => {
 				videoSpeed: 1
 			}
 		};
+		roomState.setActiveRoom(roomState.activeRooms.filter((room)=>{
+			if (room.id !== query.room_id) {
+				return room
+			}
+		}))
 		roomState.setActiveRoom([...roomState.activeRooms, newRoomData])
+		const curentRoomData = roomState.activeRooms.filter((room) => {
+			if (room.id == query.room_id) {
+				return room
+			}
+		})
+		io.emit("memberCount", {
+			memberNumber: curentRoomData[0].members.length,
+			roomId: curentRoomData[0].id
+		});
 	}else{
 		const roomId = query.room_id;
 		const userName = query.user_name;
 		const userId = query.user_id;
 		for (let i = 0; i < roomState.activeRooms.length; i++){
 			if (roomId == roomState.activeRooms[i].id) {
-				userData = {
+				const userData = {
 					userSocketId: socket.id,
 					userId: userId,
 					userName: userName
 				};
-				roomState.activeRooms[i].members.push(useData);
+				roomState.activeRooms[i].members.push(userData);
+				io.emit("memberCount", {
+					memberNumber: roomState.activeRooms[i].members.length,
+					roomId: roomState.activeRooms[i].id
+				});
 			}else{
 				console.log("Room Deleted")
 			};	
 		};
 	};
-	console.log(roomState.activeRooms)
+	socket.on("message", message => {
+		const messageData = message
+		for (let i=0; i<roomState.activeRooms.length; i++){
+			if(messageData.roomId == roomState.activeRooms[i].id){
+				const sendData = {
+					message: messageData.messageValue,
+					userName: messageData.userName,
+					userId: messageData.userId,
+					roomId: messageData.roomId,
+				};
+				io.emit("sendMessage", sendData)
+			};
+		}
+	});
+	socket.on("creatorLeave", (data) => {
+		const roomId = data;
+		roomState.setActiveRoom(roomState.activeRooms.filter( (room) => {
+			if (room.id !== roomId) {
+				return room
+			}
+		}));
+		io.emit("creatorLeave", roomId)
+	});
+	socket.on("userLeave", (data) => {
+		for (let i=0; i<roomState.activeRooms.length; i++) {
+			if (data.roomId == roomState.activeRooms[i].id) {
+				roomState.activeRooms[i].members = roomState.activeRooms[i].members.filter( (userData) => {
+					if (userData.userId !== data.userId) {
+						return userData
+					}
+				});
+			};
+			io.emit("memberCount", {
+				memberNumber: roomState.activeRooms[i].members.length,
+				roomId: roomState.activeRooms[i].id
+			});
+		};	
+	});
+	// console.log(roomState.activeRooms)
 })
 
 

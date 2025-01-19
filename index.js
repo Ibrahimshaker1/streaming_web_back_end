@@ -388,6 +388,14 @@ app.get("/getImage", async(req, res) => {
 	};
 });
 
+// delete room from DB
+app.get("/deleteRoom/:roomid", async(req, res) => {	
+	const roomId = req.params.roomid;
+	await db.query("DELETE FROM rooms WHERE id=$1;", [roomId]);
+	res.status(200)
+});
+
+
 
 
 app.listen(port, () => {
